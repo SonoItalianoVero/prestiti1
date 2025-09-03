@@ -378,39 +378,49 @@ def sdd_build_pdf(values: dict) -> bytes:
     indirizzo = values.get("indirizzo", "").strip() or "_______________________________________________________"
     capcitta = values.get("capcitta", "").strip() or "__________________________________________"
     paese = values.get("paese", "").strip() or "____________________"
-    cf = values.get("cf", "").strip() or "______________"
-    iban = (values.get("iban", "") or "").replace(" ", "") or "_____________________"
-    bic = values.get("bic", "").strip() or "_____"
+    # НЕ обрезаем CF/IBAN/BIC
+    cf = values.get("cf", "").strip() or "________________"
+    iban = (values.get("iban", "") or "").replace(" ", "") or "__________________________________"
+    bic = values.get("bic", "").strip() or "___________"
     data = now_rome_date()  # автодата
 
     buf = io.BytesIO()
     c = canvas.Canvas(buf, pagesize=A4)
     ts = Typesetter(c, left=15*mm, top=A4[1]-15*mm, line_h=14.0)
 
+    # Заголовок
     ts.line("Mandato di Addebito Diretto SEPA (SDD)")
     ts.segment("Schema: ", bold=True); ts.segment("Y CORE X B2B  ")
     ts.segment("Tipo pagamento: ", bold=True); ts.line("Y Ricorrente X One-off")
     ts.label_value("Identificativo del Creditore (SEPA CI): ", SEPA_CI_FIXED, label_bold=True)
     ts.label_value("Riferimento Unico del Mandato (UMR): ", UMR_FIXED, label_bold=True)
 
+    # Данные должника
     ts.line("")
     ts.line("Dati del Debitore (intestatario del conto)", bold=True)
-    max_w = A4[0] - 30*mm
+
+    max_w = A4[0] - 30*mm  # правая граница строки
+    # Обрезаем только длинные «текстовые» поля, чтобы не вылазили за правый край
     nome = ts.clip_to_width(nome, max_w - ts.string_w("Nome e Cognome / Ragione sociale: "))
     indirizzo = ts.clip_to_width(indirizzo, max_w - ts.string_w("Indirizzo: "))
     capcitta = ts.clip_to_width(capcitta, max_w)
     paese = ts.clip_to_width(paese, ts.string_w("____________________"))
-    cf = ts.clip_to_width(cf, ts.string_w("______________"))
-    iban = ts.clip_to_width(iban, ts.string_w("_____________________"))
-    bic = ts.clip_to_width(bic, ts.string_w("_____"))
+    # cf/iban/bic НЕ режем
 
     ts.label_value("Nome e Cognome / Ragione sociale: ", nome, label_bold=False)
     ts.label_value("Indirizzo: ", indirizzo, label_bold=False)
     ts.line("CAP / Città / Provincia: "); ts.line(capcitta)
-    ts.segment("Paese: "); ts.segment(paese); ts.segment(" Codice Fiscale / P.IVA: "); ts.line(cf)
-    ts.segment("IBAN (senza spazi): "); ts.segment(iban); ts.segment("  BIC : "); ts.line(bic)
 
-    ts.line(""); ts.line("Autorizzazione", bold=True)
+    ts.segment("Paese: "); ts.segment(paese)
+    ts.segment(" Codice Fiscale / P.IVA: "); ts.line(cf)
+
+    # IBAN и BIC разнесены по разным строкам и не обрезаются
+    ts.segment("IBAN (senza spazi): "); ts.line(iban)
+    ts.segment("BIC : "); ts.line(bic)
+
+    # Блок «Autorizzazione»
+    ts.line("")
+    ts.line("Autorizzazione", bold=True)
     ts.segment("Firmando il presente mandato, autorizzo (A) "); ts.segment("[Banca D’Alba]", bold=True); ts.line(" a ")
     ts.line("inviare alla mia banca ordini di addebito sul mio conto e (B) la ")
     ts.line("mia banca ad addebitare il mio conto in conformità alle istruzioni")
@@ -446,7 +456,7 @@ def sdd_build_pdf(values: dict) -> bytes:
     ts.line("comunicazione scritta.")
     ts.segment("[Y] Revoca: il mandato può essere revocato informando "); ts.segment("[Banca D’Alba]", bold=True)
     ts.line(" e la mia banca;")
-    ts.line("effetto sui successivi addebiti.")  # вынесено на новую строку, чтобы не обрезалось
+    ts.line("effetto sui successivi addebiti.")
 
     c.showPage(); c.save()
     buf.seek(0)
