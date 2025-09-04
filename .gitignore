@@ -15,3 +15,4 @@ env/
 
 # dotenv
 *.env
+.DS_Store
