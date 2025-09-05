@@ -139,102 +139,101 @@ def draw_border_and_pagenum(canv, doc):
     canv.restoreState()
 
 def build_pdf(values: dict) -> bytes:
-    cliente = values.get("cliente", "").strip()
-    importo = values["importo"]; tan = values["tan"]; taeg = values["taeg"]; durata = values["durata"]
-
-    rata = monthly_payment(importo, tan, durata)
-    interessi = rata * durata - importo
-    totale = importo + interessi
+    """Offerta/Documento preliminare – 1 страница, стабильный блок Firme с подписями Rossi/Minetti."""
+    cliente = (values.get("cliente", "") or "").strip()
+    importo = values.get("importo", 0.0)
+    tan     = values.get("tan", 0.0)
+    taeg    = values.get("taeg", 0.0)
+    durata  = int(values.get("durata", 0))
 
     buf = io.BytesIO()
     doc = SimpleDocTemplate(
         buf, pagesize=A4,
         leftMargin=15*mm, rightMargin=15*mm,
-        topMargin=15*mm, bottomMargin=15*mm,
+        topMargin=15*mm,  bottomMargin=15*mm,
     )
 
     styles = getSampleStyleSheet()
-    styles.add(ParagraphStyle(name="Small", fontName=_PTMONO,     fontSize=9.5,  leading=11))
-    styles.add(ParagraphStyle(name="Tiny",  fontName=_PTMONO,     fontSize=8.3,  leading=10))
-    styles.add(ParagraphStyle(name="H1",    fontName=_PTMONO_B,   fontSize=14.5, leading=16, spaceAfter=6))
-    styles.add(ParagraphStyle(name="H2",    fontName=_PTMONO_B,   fontSize=11.5, leading=13, spaceAfter=3, spaceBefore=5))
-    styles.add(ParagraphStyle(name="Body",  fontName=_PTMONO,     fontSize=10.5, leading=12.2))
-    styles.add(ParagraphStyle(name="BodyBold", fontName=_PTMONO_B, fontSize=10.5, leading=12.2))
-    styles.add(ParagraphStyle(name="SigHead",  fontName=_PTMONO,  fontSize=12,   leading=14, alignment=1))
-    styles.add(ParagraphStyle(name="RightSmall", fontName=_PTMONO, fontSize=9.2, leading=11, alignment=2))
-    styles.add(ParagraphStyle(name="FAQ", fontName=_PTMONO, fontSize=9.8, leading=11.0))
+    # только уникальные имена стилей (без конфликтов с samplesheet)
+    styles.add(ParagraphStyle(name="SmallMono",   fontName=_PTMONO,   fontSize=9.5,  leading=11))
+    styles.add(ParagraphStyle(name="TinyMono",    fontName=_PTMONO,   fontSize=8.6,  leading=10))
+    styles.add(ParagraphStyle(name="H1Mono",      fontName=_PTMONO_B, fontSize=14.5, leading=16, spaceAfter=6))
+    styles.add(ParagraphStyle(name="H2Mono",      fontName=_PTMONO_B, fontSize=11.6, leading=13, spaceAfter=3, spaceBefore=5))
+    styles.add(ParagraphStyle(name="BodyMono",    fontName=_PTMONO,   fontSize=10.5, leading=12.2))
+    styles.add(ParagraphStyle(name="BodyMonoB",   fontName=_PTMONO_B, fontSize=10.5, leading=12.2))
+    styles.add(ParagraphStyle(name="RightSmall",  fontName=_PTMONO,   fontSize=9.2,  leading=11, alignment=2))
+    styles.add(ParagraphStyle(name="FAQText",     fontName=_PTMONO,   fontSize=9.6,  leading=11))
+    styles.add(ParagraphStyle(name="SigHead",     fontName=_PTMONO,   fontSize=12,   leading=14, alignment=1))
+    styles.add(ParagraphStyle(name="SigCap",      fontName=_PTMONO,   fontSize=9.6,  leading=11, alignment=1))
 
     story = []
 
     # Логотипы (если есть)
-    logo_bda = "banca_dalba_logo.png"
-    logo_bcc = "bcc_logo.png"
-    logo_2fin = "2fin_logo.png"
+    logo_bda, logo_bcc, logo_2fin = "banca_dalba_logo.png", "bcc_logo.png", "2fin_logo.png"
     logos_row = []
     for p, w in [(logo_bda, 65*mm), (logo_bcc, 18*mm), (logo_2fin, 18*mm)]:
-        if os.path.exists(p):
-            logos_row.append(Image(p, width=w, height=16*mm))
-        else:
-            logos_row.append(Paragraph("", styles["Small"]))
+        logos_row.append(Image(p, width=w, height=16*mm) if os.path.exists(p) else Paragraph("", styles["SmallMono"]))
     if any(os.path.exists(p) for p in [logo_bda, logo_bcc, logo_2fin]):
         hdr = Table([logos_row], colWidths=[100*mm, 25*mm, 25*mm])
         hdr.setStyle(TableStyle([
-            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-            ("ALIGN", (1, 0), (2, 0), "RIGHT"),
+            ("VALIGN", (0,0), (-1,-1), "MIDDLE"),
+            ("ALIGN",  (1,0), (2,0),  "RIGHT"),
         ]))
         story.append(hdr)
-        story.append(Spacer(1, 4*mm))
+        story.append(Spacer(1, 4))
 
-    story.append(Paragraph("<b>Banca d'Alba — Credito Cooperativo</b>", styles["H1"]))
-    story.append(Paragraph("Sede legale: Via Cavour 4, 12051 Alba (CN)", styles["Small"]))
-    story.append(Paragraph("Approvazione bancaria confermata – Documento preliminare", styles["H1"]))
-    story.append(Spacer(1, 1.5*mm))
+    # Заголовки
+    story.append(Paragraph("<b>Banca d'Alba — Credito Cooperativo</b>", styles["H1Mono"]))
+    story.append(Paragraph("Sede legale: Via Cavour 4, 12051 Alba (CN)", styles["SmallMono"]))
+    story.append(Paragraph("Approvazione bancaria confermata – Documento preliminare", styles["H1Mono"]))
+    story.append(Spacer(1, 2))
 
-    story.append(Paragraph(f"<b>Cliente:</b> {cliente or '____________________'}", styles["Body"]))
+    story.append(Paragraph(f"<b>Cliente:</b> {cliente or '____________________'}", styles["BodyMono"]))
     story.append(Paragraph(
         "La banca ha <b>approvato</b> la concessione del credito; il presente è un "
-        "<b>documento preliminare</b> di notifica delle condizioni.",
-        styles["Small"]
-    ))
+        "<b>documento preliminare</b> di notifica delle condizioni.", styles["SmallMono"]))
     story.append(Paragraph(
         "Comunicazioni e gestione pratica: <b>2FIN SRL</b> (Agente in attivita finanziaria — OAM A15135)",
-        styles["Small"]
-    ))
-    story.append(Paragraph("Contatto: Telegram @operatore_2fin", styles["Small"]))
+        styles["SmallMono"]))
+    story.append(Paragraph("Contatto: Telegram @operatore_2fin", styles["SmallMono"]))
     story.append(Paragraph(f"<i>Creato: {now_rome_date()}</i>", styles["RightSmall"]))
-    story.append(Spacer(1, 2.5*mm))
+    story.append(Spacer(1, 3))
 
     # Статус-бокс
     status_data = [
-        [Paragraph("<b>Stato pratica:</b>", styles["Body"]), Paragraph("<b>APPROVATO</b> (conferma dell’istituto)", styles["Body"])],
-        [Paragraph("<b>Tipo documento:</b>", styles["Body"]), Paragraph("<b>Pre-contratto / Documento preliminare</b>", styles["Body"])],
-        [Paragraph("<b>Manca ancora:</b>", styles["Body"]), Paragraph("invio del <b>contratto definitivo</b> e del <b>piano di ammortamento</b>", styles["Body"])],
-        [Paragraph("<b>Erogazione:</b>", styles["Body"]), Paragraph("dopo la <b>firma del contratto definitivo</b>", styles["Body"])],
+        [Paragraph("<b>Stato pratica:</b>", styles["BodyMono"]),
+         Paragraph("<b>APPROVATO</b> (conferma dell’istituto)", styles["BodyMono"])],
+        [Paragraph("<b>Tipo documento:</b>", styles["BodyMono"]),
+         Paragraph("<b>Pre-contratto / Documento preliminare</b>", styles["BodyMono"])],
+        [Paragraph("<b>Manca ancora:</b>", styles["BodyMono"]),
+         Paragraph("invio del <b>contratto definitivo</b> e del <b>piano di ammortamento</b>", styles["BodyMono"])],
+        [Paragraph("<b>Erogazione:</b>", styles["BodyMono"]),
+         Paragraph("dopo la <b>firma del contratto definitivo</b>", styles["BodyMono"])],
     ]
     status_tbl = Table(status_data, colWidths=[48*mm, 75*mm])
     status_tbl.setStyle(TableStyle([
-        ("BOX", (0,0), (-1,-1), 0.7, colors.HexColor("#999")),
+        ("BOX",        (0,0), (-1,-1), 0.7, colors.HexColor("#999")),
         ("BACKGROUND", (0,0), (-1,-1), colors.HexColor("#f5f5f5")),
-        ("VALIGN", (0,0), (-1,-1), "MIDDLE"),
-        ("LEFTPADDING", (0,0), (-1,-1), 5),
-        ("RIGHTPADDING",(0,0), (-1,-1), 5),
-        ("TOPPADDING",  (0,0), (-1,-1), 4),
-        ("BOTTOMPADDING",(0,0), (-1,-1), 4),
-        ("FONTNAME", (0,0), (0,-1), _PTMONO_B),
-        ("FONTNAME", (1,0), (1,-1), _PTMONO),
-        ("FONTSIZE", (0,0), (-1,-1), 10.2),
+        ("VALIGN",     (0,0), (-1,-1), "MIDDLE"),
+        ("LEFTPADDING",(0,0), (-1,-1), 5),
+        ("RIGHTPADDING",(0,0),(-1,-1), 5),
+        ("TOPPADDING", (0,0), (-1,-1), 4),
+        ("BOTTOMPADDING",(0,0),(-1,-1), 4),
+        ("FONTNAME",   (0,0), (0,-1), _PTMONO_B),
+        ("FONTNAME",   (1,0), (1,-1), _PTMONO),
+        ("FONTSIZE",   (0,0), (-1,-1), 10.2),
     ]))
     story.append(status_tbl)
-    story.append(Spacer(1, 4*mm))
+    story.append(Spacer(1, 4))
 
     # Таблица параметров
     data = [
         ["Parametro", "Dettagli"],
-        ["Importo del credito", fmt_eur(values["importo"] if "importo" in values else 0)],
-        ["Tasso fisso (TAN)", f"{values['tan']:.2f} %" if "tan" in values else "—"],
-        ["TAEG indicativo", f"{values['taeg']:.2f} %" if "taeg" in values else "—"],
-        ["Durata", f"{values['durata']} mesi" if "durata" in values else "—"],
-        ["Erogazione fondi", "dopo la firma del contratto definitivo"],
+        ["Importo del credito", fmt_eur(importo)],
+        ["Tasso fisso (TAN)",   f"{tan:.2f} %"],
+        ["TAEG indicativo",     f"{taeg:.2f} %"],
+        ["Durata",              f"{durata} mesi"],
+        ["Erogazione fondi",    "dopo la firma del contratto definitivo"],
     ]
     t = Table(data, colWidths=[75*mm, 100*mm])
     t.setStyle(TableStyle([
@@ -250,16 +249,16 @@ def build_pdf(values: dict) -> bytes:
         ("FONTSIZE",   (0,1), (-1,-1), 10.1),
     ]))
     story.append(t)
-    story.append(Spacer(1, 3.5*mm))
+    story.append(Spacer(1, 3.5))
 
-    # FAQ-короткая
+    # FAQ
     faq_html = (
         'Domanda frequente: “Pre-approvazione = approvazione?” '
         '<b>Risposta:</b> Sì: la concessione è <b>approvata</b>; questo file è il '
         '<b>pre-contratto</b> informativo. Il vincolo giuridico nasce con la '
         '<b>firma del contratto definitivo</b>.'
     )
-    faq_box = Table([[Paragraph(faq_html, ParagraphStyle(name="FAQ2", fontName=_PTMONO, fontSize=9.6, leading=11))]], colWidths=[doc.width])
+    faq_box = Table([[Paragraph(faq_html, styles["FAQText"])]], colWidths=[doc.width])
     faq_box.setStyle(TableStyle([
         ("BOX", (0,0), (-1,-1), 0.7, colors.HexColor("#999")),
         ("BACKGROUND", (0,0), (-1,-1), colors.HexColor("#f7f7f7")),
@@ -269,32 +268,48 @@ def build_pdf(values: dict) -> bytes:
         ("BOTTOMPADDING",(0,0), (-1,-1), 4),
     ]))
     story.append(faq_box)
-    story.append(Spacer(1, 5*mm))
+    story.append(Spacer(1, 6))
 
-    # -------------------- КОНЕЦ ДОКУМЕНТА --------------------
-    story.append(Paragraph("<b>Firme</b>", ParagraphStyle(name="H2b", fontName=_PTMONO_B, fontSize=12.5, leading=14.5, spaceBefore=4, spaceAfter=4)))
+    # ----- Firme (как в «контракте», блок не разрывается) -----
+    story.append(Paragraph("<b>Firme</b>", styles["H2Mono"]))
+
+    head_l = Paragraph("Cliente", styles["SigHead"])
+    head_c = Paragraph("Rappresentante Banca<br/>d’Alba", styles["SigHead"])
+    head_r = Paragraph("Direttore 2FIN", styles["SigHead"])
+
+    sig_rossi   = sig_image("giuseppesign.png")
+    sig_minetti = sig_image("minettisign.png")
+
     sig_tbl = Table(
         [
-            [Paragraph("Cliente", ParagraphStyle(name="Sig1", fontName=_PTMONO, fontSize=10.5)), 
-             Paragraph("Rappresentante Banca d’Alba", ParagraphStyle(name="Sig2", fontName=_PTMONO, fontSize=10.5)),
-             Paragraph("Direttore 2FIN", ParagraphStyle(name="Sig3", fontName=_PTMONO, fontSize=10.5))],
+            [head_l, head_c, head_r],
+            ["", sig_rossi or "", sig_minetti or ""],
             ["", "", ""],
+            ["", Paragraph("Rapp. banca: Giuseppe Rossi", styles["SigCap"]),
+                 Paragraph("Direttore 2FIN: Alessandro Minetti", styles["SigCap"])],
         ],
-        colWidths=[60*mm, 60*mm, 40*mm],
-        rowHeights=[12*mm, 15*mm],
+        colWidths=[doc.width/3.0, doc.width/3.0, doc.width/3.0],
+        rowHeights=[12*mm, SIG_ROW_H, 9*mm, None],
+        hAlign="CENTER",
     )
     sig_tbl.setStyle(TableStyle([
-        ("LINEABOVE", (0,1), (0,1), 1, colors.black),
-        ("LINEABOVE", (1,1), (1,1), 1, colors.black),
-        ("LINEABOVE", (2,1), (2,1), 1, colors.black),
-        ("ALIGN", (0,0), (-1,-1), "CENTER"),
+        ("ALIGN", (0,0), (-1,0), "CENTER"),
+        ("VALIGN",(0,1), (-1,1), "BOTTOM"),
+        ("TOPPADDING", (0,1), (-1,1), 0),
+        ("BOTTOMPADDING",(0,1), (-1,1), max(SIG_BOTTOM_PAD, -6)),
+        ("LINEBELOW", (0,2), (0,2), SIG_LINE_THICK, colors.black),
+        ("LINEBELOW", (1,2), (1,2), SIG_LINE_THICK, colors.black),
+        ("LINEBELOW", (2,2), (2,2), SIG_LINE_THICK, colors.black),
         ("FONTNAME", (0,0), (-1,-1), _PTMONO),
     ]))
-    story.append(sig_tbl)
+    story.append(KeepTogether(sig_tbl))
 
-    doc.build(story)
+    # Сборка с прорисовкой номера страницы/рамки (если рамка не нужна — уберите параметры onFirstPage/ onLaterPages)
+    doc.build(story, onFirstPage=draw_border_and_pagenum, onLaterPages=draw_border_and_pagenum)
+
     buf.seek(0)
     return buf.read()
+
 
 # --------------------- НОВАЯ ЧАСТЬ (SDD) ---------------------
 
