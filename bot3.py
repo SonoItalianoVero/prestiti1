@@ -140,21 +140,22 @@ def draw_border_and_pagenum(canv, doc):
 
 def build_pdf(values: dict) -> bytes:
     """
-    Offerta/Pre-contratto (старая версия из скринов 1–2):
-    - страница 1: шапка, статус-бокс, таблица параметров (+рata, спese), vantaggi, penali, comunicazioni 2FIN
-    - страница 2: FAQ-бокс, riepilogo economico, informazioni legali (estratto), большой блок подписей
-    - красная двойная рамка и номер страницы на каждой странице
+    Pre-contratto su 2 pagine (как в твоих скринах):
+    • Стр.1: шапка, статус-бокс, большая таблица параметров, vantaggi/penali/comunicazioni (компактно)
+    • Стр.2: FAQ-бокс, riepilogo economico, informazioni legali, большие подписи с линией и печать.
     """
+    # ---- данные ----
     cliente = (values.get("cliente", "") or "").strip()
     importo = float(values.get("importo", 0) or 0)
     tan     = float(values.get("tan", 0) or 0)
     taeg    = float(values.get("taeg", 0) or 0)
     durata  = int(values.get("durata", 0) or 0)
 
-    rata = monthly_payment(importo, tan, durata)
-    interessi = max(rata * durata - importo, 0)
-    totale = importo + interessi
+    rata       = monthly_payment(importo, tan, durata)
+    interessi  = max(rata * durata - importo, 0)
+    totale     = importo + interessi
 
+    # ---- док ----
     buf = io.BytesIO()
     doc = SimpleDocTemplate(
         buf, pagesize=A4,
@@ -162,57 +163,47 @@ def build_pdf(values: dict) -> bytes:
         topMargin=15*mm, bottomMargin=15*mm,
     )
 
-    # --- стили (уникальные имена, чтобы не конфликтовать) ---
+    # ---- стили (компактные списки для 1-й страницы) ----
     styles = getSampleStyleSheet()
     styles.add(ParagraphStyle(name="H1Mono",   fontName=_PTMONO_B, fontSize=16.2, leading=18, spaceAfter=4))
-    styles.add(ParagraphStyle(name="H2Mono",   fontName=_PTMONO_B, fontSize=13.0, leading=15, spaceBefore=8, spaceAfter=4))
+    styles.add(ParagraphStyle(name="H2Mono",   fontName=_PTMONO_B, fontSize=13.0, leading=15, spaceBefore=6, spaceAfter=3))
     styles.add(ParagraphStyle(name="Mono",     fontName=_PTMONO,   fontSize=10.8, leading=12.6))
-    styles.add(ParagraphStyle(name="MonoSm",   fontName=_PTMONO,   fontSize=10.0, leading=11.8))
-    styles.add(ParagraphStyle(name="MonoXs",   fontName=_PTMONO,   fontSize=9.2,  leading=10.6))
+    styles.add(ParagraphStyle(name="MonoSm",   fontName=_PTMONO,   fontSize=10.0, leading=11.3))  # компактно
+    styles.add(ParagraphStyle(name="MonoXs",   fontName=_PTMONO,   fontSize=9.2,  leading=10.4))
     styles.add(ParagraphStyle(name="RightXs",  fontName=_PTMONO,   fontSize=9.4,  leading=11, alignment=2))
-    styles.add(ParagraphStyle(name="Pill",     fontName=_PTMONO_B, fontSize=10.6, leading=12.4, textColor=colors.white, alignment=1))
-    styles.add(ParagraphStyle(name="Pill2",    fontName=_PTMONO,   fontSize=10.6, leading=12.4, textColor=colors.HexColor("#0E2A47"), alignment=1))
     styles.add(ParagraphStyle(name="SigHead",  fontName=_PTMONO,   fontSize=12.0, leading=14, alignment=1))
     styles.add(ParagraphStyle(name="SigCap",   fontName=_PTMONO,   fontSize=10.2, leading=12, alignment=1))
 
     story = []
 
-    # --- логотипы ---
-    logo_bda = "banca_dalba_logo.png"
-    logo_bcc = "bcc_logo.png"
-    logo_2fin = "2fin_logo.png"
-    row = []
-    for p, w in [(logo_bda, 90*mm), (logo_bcc, 18*mm), (logo_2fin, 18*mm)]:
-        if os.path.exists(p):
-            ir = ImageReader(p); iw, ih = ir.getSize()
-            h = 18*mm
-            row.append(Image(p, width=w, height=h))
-        else:
-            row.append(Paragraph("", styles["Mono"]))
-    hdr = Table([row], colWidths=[110*mm, 25*mm, 25*mm])
-    hdr.setStyle(TableStyle([("VALIGN", (0,0), (-1,-1), "MIDDLE"), ("ALIGN", (1,0), (2,0), "RIGHT")]))
-    story += [hdr, Spacer(1, 2)]
+    # ---- логотипы ----
+    def _logo_row():
+        cells = []
+        for p, w in [("banca_dalba_logo.png", 90*mm), ("bcc_logo.png", 18*mm), ("2fin_logo.png", 18*mm)]:
+            if os.path.exists(p):
+                ir = ImageReader(p); iw, ih = ir.getSize()
+                h = 18*mm
+                cells.append(Image(p, width=w, height=h))
+            else:
+                cells.append(Paragraph("", styles["Mono"]))
+        t = Table([cells], colWidths=[110*mm, 25*mm, 25*mm])
+        t.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"MIDDLE"), ("ALIGN",(1,0),(2,0),"RIGHT")]))
+        return t
 
-    # --- шапка ---
+    story += [_logo_row(), Spacer(1, 2)]
     story.append(Paragraph("Banca d'Alba — Credito Cooperativo", styles["H1Mono"]))
     story.append(Paragraph("Sede Legale: Via Cavour 4, 12051 Alba (CN)", styles["MonoSm"]))
     story.append(Paragraph("Approvazione bancaria confermata – Documento preliminare", styles["H1Mono"]))
-    story.append(Spacer(1, 2))
+    story.append(Spacer(1, 1))
 
     story.append(Paragraph(f"Cliente: {cliente or '____________________'}", styles["Mono"]))
-    story.append(Paragraph(
-        "La banca ha approvato la concessione del credito; il presente è un documento preliminare di notifica delle condizioni.",
-        styles["MonoSm"]
-    ))
-    story.append(Paragraph(
-        "Comunicazioni e gestione pratica: 2FIN SRL (Agente in attivita finanziaria – OAM A15135)",
-        styles["MonoSm"]
-    ))
+    story.append(Paragraph("La banca ha approvato la concessione del credito; il presente è un documento preliminare di notifica delle condizioni.", styles["MonoSm"]))
+    story.append(Paragraph("Comunicazioni e gestione pratica: 2FIN SRL (Agente in attivita finanziaria – OAM A15135)", styles["MonoSm"]))
     story.append(Paragraph("Contatto: Telegram @operatore_2fin", styles["MonoSm"]))
     story.append(Paragraph(f"Creato: {now_rome_date()}", styles["RightXs"]))
-    story.append(Spacer(1, 3))
+    story.append(Spacer(1, 2))
 
-    # --- статус-бокс ---
+    # ---- статус-бокс ----
     status_tbl = Table([
         [Paragraph("<b>Stato pratica:</b>", styles["Mono"]),
          Paragraph("<b>APPROVATO</b> (conferma dell’istituto)", styles["Mono"])],
@@ -229,12 +220,12 @@ def build_pdf(values: dict) -> bytes:
         ("VALIGN", (0,0), (-1,-1), "TOP"),
         ("LEFTPADDING",(0,0), (-1,-1), 6),
         ("RIGHTPADDING",(0,0),(-1,-1), 6),
-        ("TOPPADDING",(0,0),(-1,-1), 4),
-        ("BOTTOMPADDING",(0,0),(-1,-1), 4),
+        ("TOPPADDING",(0,0),(-1,-1), 3),
+        ("BOTTOMPADDING",(0,0),(-1,-1), 3),
     ]))
-    story += [status_tbl, Spacer(1, 6)]
+    story += [status_tbl, Spacer(1, 4)]
 
-    # --- таблица параметров (как на стр.1 скрина) ---
+    # ---- таблица параметров ----
     params = [
         ["Parametro", "Dettagli"],
         ["Importo del credito", fmt_eur(importo)],
@@ -250,53 +241,52 @@ def build_pdf(values: dict) -> bytes:
     ]
     tbl = Table(params, colWidths=[75*mm, doc.width-75*mm])
     tbl.setStyle(TableStyle([
-        ("BACKGROUND", (0,0), (-1,0), colors.HexColor("#ececec")),
-        ("FONTNAME", (0,0), (-1,0), "Helvetica-Bold"),
-        ("ALIGN", (0,0), (-1,0), "CENTER"),
-        ("GRID", (0,0), (-1,-1), 0.3, colors.grey),
-        ("FONTNAME", (0,1), (-1,-1), _PTMONO),
-        ("FONTSIZE", (0,1), (-1,-1), 10.3),
-        ("LEFTPADDING",(0,0), (-1,-1), 5),
-        ("RIGHTPADDING",(0,0),(-1,-1), 5),
-        ("TOPPADDING",(0,0),(-1,-1), 2.6),
-        ("BOTTOMPADDING",(0,0),(-1,-1), 2.6),
+        ("BACKGROUND",(0,0),(-1,0),colors.HexColor("#ececec")),
+        ("FONTNAME",(0,0),(-1,0),"Helvetica-Bold"),
+        ("ALIGN",(0,0),(-1,0),"CENTER"),
+        ("GRID",(0,0),(-1,-1),0.3,colors.grey),
+        ("FONTNAME",(0,1),(-1,-1),_PTMONO),
+        ("FONTSIZE",(0,1),(-1,-1),10.2),
+        ("LEFTPADDING",(0,0),(-1,-1),5),
+        ("RIGHTPADDING",(0,0),(-1,-1),5),
+        ("TOPPADDING",(0,0),(-1,-1),2.2),
+        ("BOTTOMPADDING",(0,0),(-1,-1),2.2),
     ]))
-    story += [tbl, Spacer(1, 2)]
+    story += [tbl, Spacer(1, 1)]
     story.append(Paragraph("*Rata calcolata alla data dell'offerta.", styles["MonoXs"]))
-    story.append(Spacer(1, 6))
+    story.append(Spacer(1, 4))
 
-    # --- Vantaggi / Penali / Comunicazioni 2FIN ---
+    # ---- списки на 1-й странице (компактные) ----
     story.append(Paragraph("Vantaggi", styles["H2Mono"]))
-    vantaggi = [
+    for it in [
         "• Possibilità di sospendere fino a 3 rate",
         "• Estinzione anticipata senza penali",
         "• Riduzione del TAN -0,10 p.p. ogni 12 mesi puntuali (fino a 5,95%)",
         "• Sospensione straordinaria delle rate in caso di perdita del lavoro (previo consenso della banca)",
-    ]
-    for it in vantaggi: story.append(Paragraph(it, styles["Mono"]))
+    ]:
+        story.append(Paragraph(it, styles["MonoSm"]))
 
     story.append(Paragraph("Penali e interessi di mora", styles["H2Mono"]))
-    penali = [
+    for it in [
         "• Ritardo oltre 5 giorni: TAN + 2 p.p.",
         "• Sollecito: €10 cartaceo / €5 digitale",
         "• 2 rate non pagate: risoluzione del contratto e recupero crediti",
         "• Penale per risoluzione anticipata solo in caso di violazione delle condizioni contrattuali",
-    ]
-    for it in penali: story.append(Paragraph(it, styles["Mono"]))
+    ]:
+        story.append(Paragraph(it, styles["MonoSm"]))
 
     story.append(Paragraph("Comunicazioni e pagamento servizi 2FIN", styles["H2Mono"]))
-    c2fin = [
+    for it in [
         "• Tutte le comunicazioni tra banca e cliente gestite solo tramite 2FIN SRL.",
         "• Contratto e allegati inviati in PDF via Telegram.",
-        "• Servizi 2FIN – quota fissa €100 (non commissione bancaria), pagamento via SEPA / SEPA Instant al conto del commercialista indipendente.",
-    ]
-    for it in c2fin: story.append(Paragraph(it, styles["Mono"]))
-    story.append(Spacer(1, 6))
+        "• Servizi 2FIN – quota fissa €100 (non commissione bancaria), pagamento via SEPA / SEPA Instant al commercialista indipendente.",
+    ]:
+        story.append(Paragraph(it, styles["MonoSm"]))
 
-    # ---- страница 2 ----
+    # ---- Страница 2 ----
     story.append(PageBreak())
 
-    # FAQ-бокс
+    # FAQ
     faq = (
         'Domanda frequente: “Pre-approvazione = approvazione?”<br/>'
         '<b>Risposta:</b> Sì: la concessione è approvata; questo file è il pre-contratto informativo. '
@@ -304,16 +294,16 @@ def build_pdf(values: dict) -> bytes:
     )
     faq_box = Table([[Paragraph(faq, styles["MonoSm"])]], colWidths=[doc.width])
     faq_box.setStyle(TableStyle([
-        ("BOX", (0,0), (-1,-1), 0.9, colors.HexColor("#96A6C8")),
-        ("BACKGROUND", (0,0), (-1,-1), colors.HexColor("#EEF3FF")),
-        ("LEFTPADDING",(0,0), (-1,-1), 6),
-        ("RIGHTPADDING",(0,0),(-1,-1), 6),
-        ("TOPPADDING",(0,0),(-1,-1), 4),
-        ("BOTTOMPADDING",(0,0),(-1,-1), 4),
+        ("BOX",(0,0),(-1,-1),0.9,colors.HexColor("#96A6C8")),
+        ("BACKGROUND",(0,0),(-1,-1),colors.HexColor("#EEF3FF")),
+        ("LEFTPADDING",(0,0),(-1,-1),6),
+        ("RIGHTPADDING",(0,0),(-1,-1),6),
+        ("TOPPADDING",(0,0),(-1,-1),3),
+        ("BOTTOMPADDING",(0,0),(-1,-1),3),
     ]))
-    story += [faq_box, Spacer(1, 8)]
+    story += [faq_box, Spacer(1, 6)]
 
-    # Riepilogo economico
+    # riepilogo
     story.append(Paragraph("Riepilogo economico", styles["H2Mono"]))
     riepilogo = Table([
         ["Importo del credito", fmt_eur(importo)],
@@ -324,20 +314,20 @@ def build_pdf(values: dict) -> bytes:
         ["Durata", f"{durata} mesi"],
     ], colWidths=[75*mm, doc.width-75*mm])
     riepilogo.setStyle(TableStyle([
-        ("GRID", (0,0), (-1,-1), 0.3, colors.grey),
-        ("BACKGROUND", (0,0), (-1,-1), colors.whitesmoke),
-        ("FONTNAME", (0,0), (-1,-1), _PTMONO),
-        ("FONTSIZE", (0,0), (-1,-1), 10.3),
-        ("LEFTPADDING",(0,0), (-1,-1), 5),
-        ("RIGHTPADDING",(0,0),(-1,-1), 5),
-        ("TOPPADDING",(0,0),(-1,-1), 2.6),
-        ("BOTTOMPADDING",(0,0),(-1,-1), 2.6),
+        ("GRID",(0,0),(-1,-1),0.3,colors.grey),
+        ("BACKGROUND",(0,0),(-1,-1),colors.whitesmoke),
+        ("FONTNAME",(0,0),(-1,-1),_PTMONO),
+        ("FONTSIZE",(0,0),(-1,-1),10.2),
+        ("LEFTPADDING",(0,0),(-1,-1),5),
+        ("RIGHTPADDING",(0,0),(-1,-1),5),
+        ("TOPPADDING",(0,0),(-1,-1),2.2),
+        ("BOTTOMPADDING",(0,0),(-1,-1),2.2),
     ]))
-    story += [riepilogo, Spacer(1, 6)]
+    story += [riepilogo, Spacer(1, 5)]
 
-    # Informazioni legali
+    # legali
     story.append(Paragraph("Informazioni legali (estratto)", styles["H2Mono"]))
-    legali = [
+    for it in [
         "• L'offerta è preliminare e pre-approvata: con l'accettazione del cliente diventa vincolante alle condizioni sopra descritte.",
         "• Il TAEG è indicativo e può variare alla data di firma del contratto.",
         "• Il cliente ha diritto a ricevere SECCI e piano di ammortamento completo dopo la firma.",
@@ -346,64 +336,65 @@ def build_pdf(values: dict) -> bytes:
         "• Invio del contratto via Telegram considerato equivalente a e-mail o posta cartacea.",
         "• Pagamento servizi 2FIN solo via SEPA/SEPA Instant al commercialista indipendente.",
         "• Trattamento dati personali secondo la normativa vigente.",
-    ]
-    for it in legali: story.append(Paragraph(it, styles["Mono"]))
-    story.append(Spacer(1, 8))
+    ]:
+        story.append(Paragraph(it, styles["MonoSm"]))
+    story.append(Spacer(1, 6))
 
-    # --- подписи: заголовки + картинки + единая линия по всей ширине ---
+    # подписи
     story.append(Paragraph("Firme", styles["H2Mono"]))
-
     head_l = Paragraph("Firma Cliente", styles["SigHead"])
     head_c = Paragraph("Firma Rappresentante<br/>Banca d'Alba", styles["SigHead"])
     head_r = Paragraph("Firma Rappresentante<br/>2FIN", styles["SigHead"])
 
-    sig_bank   = sig_image("giuseppesign.png")   # Банк
-    sig_2fin   = sig_image("minettisign.png")    # 2FIN
+    sig_bank = sig_image("giuseppesign.png")
+    sig_2fin = sig_image("minettisign.png")
 
     sig_tbl = Table(
         [
             [head_l, head_c, head_r],
             ["", sig_bank or "", sig_2fin or ""],
-            ["", "", ""],  # подчеркивание — сплошная линия
+            ["", "", ""],  # единая линия
         ],
         colWidths=[doc.width/3.0, doc.width/3.0, doc.width/3.0],
-        rowHeights=[12*mm, SIG_ROW_H, 10*mm],
+        rowHeights=[12*mm, SIG_ROW_H, 9.5*mm],
         hAlign="CENTER",
     )
     sig_tbl.setStyle(TableStyle([
-        ("ALIGN", (0,0), (-1,0), "CENTER"),
-        ("VALIGN", (0,1), (-1,1), "BOTTOM"),
-        ("BOTTOMPADDING", (0,1), (-1,1), SIG_BOTTOM_PAD),
-        ("LINEBELOW", (0,2), (-1,2), SIG_LINE_THICK, colors.black),  # одна длинная линия
-        ("FONTNAME", (0,0), (-1,-1), _PTMONO),
+        ("ALIGN",(0,0),(-1,0),"CENTER"),
+        ("VALIGN",(0,1),(-1,1),"BOTTOM"),
+        ("BOTTOMPADDING",(0,1),(-1,1),SIG_BOTTOM_PAD),
+        ("LINEBELOW",(0,2),(-1,2),SIG_LINE_THICK,colors.black),
+        ("FONTNAME",(0,0),(-1,-1),_PTMONO),
     ]))
     story.append(sig_tbl)
 
-    # подписи с именами под линией — два столбца
     names = Table(
         [[Paragraph("Rapp. banca: Giuseppe Rossi", styles["SigCap"]),
           Paragraph("Rapp. 2FIN: Alessandro Minetti", styles["SigCap"])]],
         colWidths=[doc.width/2.0, doc.width/2.0]
     )
-    names.setStyle(TableStyle([
-        ("ALIGN", (0,0), (0,0), "CENTER"),
-        ("ALIGN", (1,0), (1,0), "CENTER"),
-        ("TOPPADDING", (0,0), (-1,-1), 4),
-    ]))
+    names.setStyle(TableStyle([("ALIGN",(0,0),(0,0),"CENTER"), ("ALIGN",(1,0),(1,0),"CENTER"), ("TOPPADDING",(0,0),(-1,-1),3)]))
     story.append(names)
 
-    # водяной знак/печать внизу справа (если файл есть)
-    if os.path.exists("bda_stamp.png"):
-        stamp = Image("bda_stamp.png", width=58*mm, height=58*mm)
+    # печать справа внизу (если файл есть)
+    def _first_existing(paths):
+        for p in paths:
+            if os.path.exists(p):
+                return p
+        return None
+    stamp_path = "stampaalba.png"
+    if stamp_path:
+        stamp = Image(stamp_path, width=58*mm, height=58*mm)
         stamp.hAlign = "RIGHT"
-        story.append(Spacer(1, 8))
+        story.append(Spacer(1, 6))
         story.append(stamp)
 
-    # --- сборка с рамкой и номерами страниц ---
+    # сборка с рамкой/номером страницы
     doc.build(story, onFirstPage=draw_border_and_pagenum, onLaterPages=draw_border_and_pagenum)
 
     buf.seek(0)
     return buf.read()
+
 
 
 
