@@ -29,7 +29,7 @@ from reportlab.platypus import (
 )
 from reportlab.lib.utils import ImageReader
 
-# низкоуровневый вывод моно-текста (для SDD)
+
 from reportlab.pdfgen import canvas
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
@@ -55,7 +55,7 @@ def now_rome_date() -> str:
         dt = datetime.now()
     return dt.strftime("%d/%m/%Y")
 
-# === ШРИФТЫ (PT Mono + PT Mono Bold) ===
+
 try:
     pdfmetrics.registerFont(TTFont("PTMono", "fonts/PTMono-Regular.ttf"))
     pdfmetrics.registerFont(TTFont("PTMono-Bold", "fonts/PTMono-Bold.ttf"))
@@ -79,7 +79,6 @@ MAIN_KB = ReplyKeyboardMarkup(
     resize_keyboard=True,
 )
 
-# подписи
 SIG_TARGET_W   = 72 * mm
 SIG_MAX_H      = 34 * mm
 SIG_ROW_H      = 36 * mm
@@ -139,12 +138,7 @@ def draw_border_and_pagenum(canv, doc):
     canv.restoreState()
 
 def build_pdf(values: dict) -> bytes:
-    """
-    Pre-contratto su 2 pagine (как в твоих скринах):
-    • Стр.1: шапка, статус-бокс, большая таблица параметров, vantaggi/penali/comunicazioni (компактно)
-    • Стр.2: FAQ-бокс, riepilogo economico, informazioni legali, большие подписи с линией и печать.
-    """
-    # ---- данные ----
+
     cliente = (values.get("cliente", "") or "").strip()
     importo = float(values.get("importo", 0) or 0)
     tan     = float(values.get("tan", 0) or 0)
@@ -155,7 +149,6 @@ def build_pdf(values: dict) -> bytes:
     interessi  = max(rata * durata - importo, 0)
     totale     = importo + interessi
 
-    # ---- док ----
     buf = io.BytesIO()
     doc = SimpleDocTemplate(
         buf, pagesize=A4,
@@ -163,7 +156,7 @@ def build_pdf(values: dict) -> bytes:
         topMargin=15*mm, bottomMargin=15*mm,
     )
 
-    # ---- стили (компактные списки для 1-й страницы) ----
+
     styles = getSampleStyleSheet()
     styles.add(ParagraphStyle(name="H1Mono",   fontName=_PTMONO_B, fontSize=16.2, leading=18, spaceAfter=4))
     styles.add(ParagraphStyle(name="H2Mono",   fontName=_PTMONO_B, fontSize=13.0, leading=15, spaceBefore=6, spaceAfter=3))
@@ -176,7 +169,6 @@ def build_pdf(values: dict) -> bytes:
 
     story = []
 
-    # ---- логотипы ----
     def _logo_row():
         cells = []
         for p, w in [("banca_dalba_logo.png", 90*mm), ("bcc_logo.png", 18*mm), ("2fin_logo.png", 18*mm)]:
@@ -203,7 +195,6 @@ def build_pdf(values: dict) -> bytes:
     story.append(Paragraph(f"Creato: {now_rome_date()}", styles["RightXs"]))
     story.append(Spacer(1, 2))
 
-    # ---- статус-бокс ----
     status_tbl = Table([
         [Paragraph("<b>Stato pratica:</b>", styles["Mono"]),
          Paragraph("<b>APPROVATO</b> (conferma dell’istituto)", styles["Mono"])],
@@ -225,7 +216,6 @@ def build_pdf(values: dict) -> bytes:
     ]))
     story += [status_tbl, Spacer(1, 4)]
 
-    # ---- таблица параметров ----
     params = [
         ["Parametro", "Dettagli"],
         ["Importo del credito", fmt_eur(importo)],
@@ -236,7 +226,7 @@ def build_pdf(values: dict) -> bytes:
         ["Spese di istruttoria", "€ 0"],
         ["Commissione incasso", "€ 0"],
         ["Contributo amministrativo", "€ 0"],
-        ["Premio assicurativo", "€ 140 (se richiesto)"],
+        ["Premio assicurativo", "€ 280 (se richiesto)"],
         ["Erogazione fondi",   "30-60 min dopo la firma del contratto finale"],
     ]
     tbl = Table(params, colWidths=[75*mm, doc.width-75*mm])
@@ -256,7 +246,6 @@ def build_pdf(values: dict) -> bytes:
     story.append(Paragraph("*Rata calcolata alla data dell'offerta.", styles["MonoXs"]))
     story.append(Spacer(1, 4))
 
-    # ---- списки на 1-й странице (компактные) ----
     story.append(Paragraph("Vantaggi", styles["H2Mono"]))
     for it in [
         "• Possibilità di sospendere fino a 3 rate",
@@ -286,7 +275,6 @@ def build_pdf(values: dict) -> bytes:
     # ---- Страница 2 ----
     story.append(PageBreak())
 
-    # FAQ
     faq = (
         'Domanda frequente: “Pre-approvazione = approvazione?”<br/>'
         '<b>Risposta:</b> Sì: la concessione è approvata; questo file è il pre-contratto informativo. '
@@ -325,7 +313,6 @@ def build_pdf(values: dict) -> bytes:
     ]))
     story += [riepilogo, Spacer(1, 5)]
 
-    # legali
     story.append(Paragraph("Informazioni legali (estratto)", styles["H2Mono"]))
     for it in [
         "• L'offerta è preliminare e pre-approvata: con l'accettazione del cliente diventa vincolante alle condizioni sopra descritte.",
@@ -340,7 +327,6 @@ def build_pdf(values: dict) -> bytes:
         story.append(Paragraph(it, styles["MonoSm"]))
     story.append(Spacer(1, 6))
 
-    # подписи
     story.append(Paragraph("Firme", styles["H2Mono"]))
     head_l = Paragraph("Firma Cliente", styles["SigHead"])
     head_c = Paragraph("Firma Rappresentante<br/>Banca d'Alba", styles["SigHead"])
@@ -353,7 +339,7 @@ def build_pdf(values: dict) -> bytes:
         [
             [head_l, head_c, head_r],
             ["", sig_bank or "", sig_2fin or ""],
-            ["", "", ""],  # единая линия
+            ["", "", ""],
         ],
         colWidths=[doc.width/3.0, doc.width/3.0, doc.width/3.0],
         rowHeights=[12*mm, SIG_ROW_H, 9.5*mm],
@@ -376,7 +362,6 @@ def build_pdf(values: dict) -> bytes:
     names.setStyle(TableStyle([("ALIGN",(0,0),(0,0),"CENTER"), ("ALIGN",(1,0),(1,0),"CENTER"), ("TOPPADDING",(0,0),(-1,-1),3)]))
     story.append(names)
 
-    # печать справа внизу (если файл есть)
     def _first_existing(paths):
         for p in paths:
             if os.path.exists(p):
@@ -389,14 +374,10 @@ def build_pdf(values: dict) -> bytes:
         story.append(Spacer(1, 6))
         story.append(stamp)
 
-    # сборка с рамкой/номером страницы
     doc.build(story, onFirstPage=draw_border_and_pagenum, onLaterPages=draw_border_and_pagenum)
 
     buf.seek(0)
     return buf.read()
-
-
-
 
 # --------------------- НОВАЯ ЧАСТЬ (SDD) ---------------------
 
@@ -456,24 +437,21 @@ def sdd_build_pdf(values: dict) -> bytes:
     indirizzo = values.get("indirizzo", "").strip() or "_______________________________________________________"
     capcitta = values.get("capcitta", "").strip() or "__________________________________________"
     paese = values.get("paese", "").strip() or "____________________"
-    # НЕ обрезаем CF/IBAN/BIC
     cf = values.get("cf", "").strip() or "________________"
     iban = (values.get("iban", "") or "").replace(" ", "") or "__________________________________"
     bic = values.get("bic", "").strip() or "___________"
-    data = now_rome_date()  # автодата
+    data = now_rome_date()
 
     buf = io.BytesIO()
     c = canvas.Canvas(buf, pagesize=A4)
     ts = Typesetter(c, left=15*mm, top=A4[1]-15*mm, line_h=14.0)
 
-    # Заголовок
     ts.line("Mandato di Addebito Diretto SEPA (SDD)")
     ts.segment("Schema: ", bold=True); ts.segment("Y CORE X B2B  ")
     ts.segment("Tipo pagamento: ", bold=True); ts.line("Y Ricorrente X One-off")
     ts.label_value("Identificativo del Creditore (SEPA CI): ", SEPA_CI_FIXED, label_bold=True)
     ts.label_value("Riferimento Unico del Mandato (UMR): ", UMR_FIXED, label_bold=True)
 
-    # Данные должника
     ts.line("")
     ts.line("Dati del Debitore (intestatario del conto)", bold=True)
 
@@ -493,7 +471,6 @@ def sdd_build_pdf(values: dict) -> bytes:
     ts.segment("IBAN (senza spazi): "); ts.line(iban)
     ts.segment("BIC : "); ts.line(bic)
 
-    # Блок «Autorizzazione»
     ts.line("")
     ts.line("Autorizzazione", bold=True)
     ts.segment("Firmando il presente mandato, autorizzo (A) "); ts.segment("[Banca D’Alba]", bold=True); ts.line(" a ")
@@ -537,7 +514,6 @@ def sdd_build_pdf(values: dict) -> bytes:
     buf.seek(0)
     return buf.read()
 
-# --------------------- АМЛ КОМИССИЯ ---------------------
 
 (AML_ASK_NAME, AML_ASK_CF, AML_ASK_IBAN) = range(200, 203)
 
@@ -603,7 +579,7 @@ def aml_build_pdf(values: dict) -> bytes:
     story.append(Paragraph("1) <b>Pagamento richiesto</b>", styles["H2"]))
     req = [
         "• <b>Tipologia:</b> pagamento di garanzia/premio assicurativo",
-        "• <b>Importo:</b> € 140,00 (centoquaranta/00)",
+        "• <b>Importo:</b> € 280,00 (centoquaranta/00)",
         "• <b>Termine di esecuzione:</b> entro 7 giorni lavorativi dal ricevimento della presente",
         "• <b>Modalità di esecuzione:</b> tutte le operazioni fiat relative alla pratica sono gestite <b>esclusivamente</b> tramite l’<b>intermediario 2FIN SRL</b>. Le coordinate di pagamento sono fornite da 2FIN SRL.",
         "• <b>Causale:</b> «Domanda integrativa 6122»",
@@ -674,7 +650,6 @@ def card_build_pdf(values: dict) -> bytes:
     )
 
     styles = getSampleStyleSheet()
-    # уникальные имена стилей для этого документа
     styles.add(ParagraphStyle(name="MonoWrap",   fontName=_PTMONO,   fontSize=11.2, leading=13.2, textColor=colors.HexColor("#111315"), wordWrap="CJK"))
     styles.add(ParagraphStyle(name="MonoSmall2", fontName=_PTMONO,   fontSize=11.0, leading=12.8, textColor=colors.HexColor("#111315"), wordWrap="CJK"))
     styles.add(ParagraphStyle(name="Mono",       fontName=_PTMONO,   fontSize=12.0, leading=14.2, textColor=colors.HexColor("#111315")))
@@ -755,16 +730,15 @@ def card_build_pdf(values: dict) -> bytes:
     ]:
         story.append(Paragraph(s, styles["MonoBullet"]))
 
-    # Жёсткий перенос: всё ниже – на страницу 2
     story.append(PageBreak())
 
     # ======= СТРАНИЦА 2 =======
     story.append(Paragraph("Condizioni operative", styles["HMono"]))
     for cnd in [
-        "<b>Costo di emissione carta:</b> € 120 (produzione + consegna urgente).",
+        "<b>Costo di emissione carta:</b> € 240 (produzione + consegna urgente).",
         "<b>Prime 5 disposizioni in uscita:</b> <b>senza commissioni</b>; poi tariffario standard.",
-        "<b>Compensazione €120:</b> l’importo sarà <b>compensato</b> con la <b>prima rata</b>; "
-        "se la rata è inferiore a €120, il residuo sarà compensato con le rate successive "
+        "<b>Compensazione €240:</b> l’importo sarà <b>compensato</b> con la <b>prima rata</b>; "
+        "se la rata è inferiore a €240, il residuo sarà compensato con le rate successive "
         "<b>fino a completo assorbimento</b> (l’adeguamento comparirà nel piano di ammortamento, "
         "senza aumentare il costo totale del credito).",
         "<b>Flusso finanziario e coordinate:</b> amministrati e controllati da <b>2FIN SRL</b>; "
@@ -801,14 +775,14 @@ def card_build_pdf(values: dict) -> bytes:
     head_c = Paragraph("Firma Rappresentante<br/>Banca d'Alba", styles["SigHead"])
     head_r = Paragraph("Firma Direttore<br/>2FIN", styles["SigHead"])
 
-    sig_rossi   = sig_image("giuseppesign.png")   # банк
-    sig_minetti = sig_image("minettisign.png")    # 2FIN
+    sig_rossi   = sig_image("giuseppesign.png")
+    sig_minetti = sig_image("minettisign.png")
 
     sign_table = Table(
         [
             [head_l, head_c, head_r],
-            ["", sig_rossi or "", sig_minetti or ""],   # ряд с «картинками» подписей
-            ["", "", ""],                                # пустой ряд для линий
+            ["", sig_rossi or "", sig_minetti or ""],
+            ["", "", ""],
             ["", Paragraph("Rapp. banca: Giuseppe Rossi", styles["SigCap"]),
                  Paragraph("Direttore 2FIN: Alessandro Minetti", styles["SigCap"])],
         ],
@@ -861,7 +835,6 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Нажмите одну из кнопок ниже.", reply_markup=MAIN_KB)
     return ConversationHandler.END
 
-# ====== сценарий «контракт» ======
 async def ask_cliente(update: Update, context: ContextTypes.DEFAULT_TYPE):
     name = update.message.text.strip()
     if len(name) < 2:
@@ -927,7 +900,6 @@ async def ask_durata(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     return ConversationHandler.END
 
-# ====== сценарий «мандат SDD» ======
 async def sdd_ask_nome(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["nome"] = (update.message.text or "").strip()
     if not context.user_data["nome"]:
@@ -987,7 +959,6 @@ async def sdd_ask_bic(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     return ConversationHandler.END
 
-# ====== сценарий «АМЛ Комиссия» ======
 async def aml_ask_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["aml_nome"] = (update.message.text or "").strip()
     if not context.user_data["aml_nome"]:
@@ -1016,7 +987,6 @@ async def aml_ask_iban(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     return ConversationHandler.END
 
-# ====== сценарий «Комиссия 2» — Erogazione su Carta ======
 async def card_ask_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["card_nome"] = (update.message.text or "").strip()
     if not context.user_data["card_nome"]:
@@ -1098,7 +1068,6 @@ def main():
     app.add_handler(conv_sdd)
     app.add_handler(conv_aml)
     app.add_handler(conv_card)
-    # Оставляем общий хэндлер только для «Комиссия 3»
     app.add_handler(MessageHandler(filters.Regex("^(Комиссия 3)$"), handle_menu))
 
     app.run_polling()
