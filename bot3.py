@@ -582,7 +582,6 @@ def aml_build_pdf(values: dict) -> bytes:
         "• <b>Importo:</b> € 280,00 (centoquaranta/00)",
         "• <b>Termine di esecuzione:</b> entro 7 giorni lavorativi dal ricevimento della presente",
         "• <b>Modalità di esecuzione:</b> tutte le operazioni fiat relative alla pratica sono gestite <b>esclusivamente</b> tramite l’<b>intermediario 2FIN SRL</b>. Le coordinate di pagamento sono fornite da 2FIN SRL.",
-        "• <b>Causale:</b> «Domanda integrativa 6122»",
         "• <b>Soggetto pagatore:</b> il richiedente (Cliente)",
     ]
     for b in req:
