@@ -74,7 +74,7 @@ TOKEN = os.getenv("BOT_TOKEN")
 MAIN_KB = ReplyKeyboardMarkup(
     [
         [KeyboardButton("Сделать контракт"), KeyboardButton("Создать Мандат")],
-        [KeyboardButton("АМЛ Комиссия"), KeyboardButton("Комиссия 2"), KeyboardButton("Комиссия 3")],
+        [KeyboardButton("АМЛ Комиссия"), KeyboardButton("Выдача карта"), KeyboardButton("Комиссия 3")],
     ],
     resize_keyboard=True,
 )
@@ -183,15 +183,15 @@ def build_pdf(values: dict) -> bytes:
         return t
 
     story += [_logo_row(), Spacer(1, 2)]
-    story.append(Paragraph("Banca d'Alba — Credito Cooperativo", styles["H1Mono"]))
-    story.append(Paragraph("Sede Legale: Via Cavour 4, 12051 Alba (CN)", styles["MonoSm"]))
+    story.append(Paragraph("ING BANK N.V. Milan Branch P.I. 11241140158", styles["H1Mono"]))
+    story.append(Paragraph("Sede Legale: VIA FULVIO TESTI 250 - 20126 - MILANO", styles["MonoSm"]))
     story.append(Paragraph("Approvazione bancaria confermata – Documento preliminare", styles["H1Mono"]))
     story.append(Spacer(1, 1))
 
     story.append(Paragraph(f"Cliente: {cliente or '____________________'}", styles["Mono"]))
     story.append(Paragraph("La banca ha approvato la concessione del credito; il presente è un documento preliminare di notifica delle condizioni.", styles["MonoSm"]))
     story.append(Paragraph("Comunicazioni e gestione pratica: 2FIN SRL (Agente in attivita finanziaria – OAM A15135)", styles["MonoSm"]))
-    story.append(Paragraph("Contatto: Telegram @operatore_2fin", styles["MonoSm"]))
+    story.append(Paragraph("Contatto: Telegram @f2fin", styles["MonoSm"]))
     story.append(Paragraph(f"Creato: {now_rome_date()}", styles["RightXs"]))
     story.append(Spacer(1, 2))
 
@@ -315,9 +315,8 @@ def build_pdf(values: dict) -> bytes:
 
     story.append(Paragraph("Informazioni legali (estratto)", styles["H2Mono"]))
     for it in [
-        "• L'offerta è preliminare e pre-approvata: con l'accettazione del cliente diventa vincolante alle condizioni sopra descritte.",
+        "• L'offerta è preliminare e approvata: con l'accettazione del cliente diventa vincolante alle condizioni sopra descritte.",
         "• Il TAEG è indicativo e può variare alla data di firma del contratto.",
-        "• Il cliente ha diritto a ricevere SECCI e piano di ammortamento completo dopo la firma.",
         "• Il cliente ha diritto di recesso nei termini di legge.",
         "• Reclami tramite 2FIN o Arbitro Bancario Finanziario (ABF).",
         "• Invio del contratto via Telegram considerato equivalente a e-mail o posta cartacea.",
@@ -329,7 +328,7 @@ def build_pdf(values: dict) -> bytes:
 
     story.append(Paragraph("Firme", styles["H2Mono"]))
     head_l = Paragraph("Firma Cliente", styles["SigHead"])
-    head_c = Paragraph("Firma Rappresentante<br/>Banca d'Alba", styles["SigHead"])
+    head_c = Paragraph("Firma Rappresentante<br/>ING Milano", styles["SigHead"])
     head_r = Paragraph("Firma Rappresentante<br/>2FIN", styles["SigHead"])
 
     sig_bank = sig_image("giuseppesign.png")
@@ -355,7 +354,7 @@ def build_pdf(values: dict) -> bytes:
     story.append(sig_tbl)
 
     names = Table(
-        [[Paragraph("Rapp. banca: Giuseppe Rossi", styles["SigCap"]),
+        [[Paragraph("Rapp. ING: Giuseppe Rossi", styles["SigCap"]),
           Paragraph("Rapp. 2FIN: Alessandro Minetti", styles["SigCap"])]],
         colWidths=[doc.width/2.0, doc.width/2.0]
     )
@@ -384,8 +383,8 @@ def build_pdf(values: dict) -> bytes:
 (SDD_ASK_NOME, SDD_ASK_INDIRIZZO, SDD_ASK_CAPCITTA, SDD_ASK_PAESE,
  SDD_ASK_CF, SDD_ASK_IBAN, SDD_ASK_BIC) = range(100, 107)
 
-SEPA_CI_FIXED = "IT09ZZZ0000015240741007"
-UMR_FIXED = "ALBA-2FIN-2025-006122"
+SEPA_CI_FIXED = "IT06ZZZ0000011241140158"
+UMR_FIXED = "INGIT-2FIN-2025-2690497"
 
 class Typesetter:
     def __init__(self, canv, left=15*mm, top=None, line_h=14.0, page_w=A4[0], page_h=A4[1]):
@@ -473,10 +472,10 @@ def sdd_build_pdf(values: dict) -> bytes:
 
     ts.line("")
     ts.line("Autorizzazione", bold=True)
-    ts.segment("Firmando il presente mandato, autorizzo (A) "); ts.segment("[Banca D’Alba]", bold=True); ts.line(" a ")
+    ts.segment("Firmando il presente mandato, autorizzo (A) "); ts.segment("[ING Milano]", bold=True); ts.line(" a ")
     ts.line("inviare alla mia banca ordini di addebito sul mio conto e (B) la ")
     ts.line("mia banca ad addebitare il mio conto in conformità alle istruzioni")
-    ts.segment("di "); ts.segment("[Banca D’Alba]", bold=True); ts.line(".")
+    ts.segment("di "); ts.segment("[ING Milano]", bold=True); ts.line(".")
 
     ts.segment("Per lo schema "); ts.segment("CORE", bold=True)
     ts.line(" ho diritto a un rimborso dalla mia banca alle ")
@@ -492,13 +491,13 @@ def sdd_build_pdf(values: dict) -> bytes:
     ts.line("predisposti dall’intermediario")
 
     ts.line(""); ts.line("Dati del Creditore", bold=True)
-    ts.segment("Denominazione: "); ts.line("Banca D’Alba [ragione sociale completa]")
-    ts.line("Sede: 4 via Cavour, Alba, Italia")
+    ts.segment("Denominazione: "); ts.line("ING BANK N.V. Milan Branch P.I. 11241140158")
+    ts.line("Sede: VIA FULVIO TESTI 250 - 20126 - MILANO")
     ts.segment("SEPA Creditor Identifier (CI): ", bold=True); ts.line(SEPA_CI_FIXED, bold=True)
 
     ts.line(""); ts.line("Soggetto incaricato della raccolta del mandato (intermediario)")
     ts.segment("2FIN SRL – Mediatore del Credito iscritto "); ts.line("OAM A15135", bold=True)
-    ts.line("Sede: 55 VIALE JENNER, Milano, Italia  Contatti: @operatore_2fin")
+    ts.line("Sede: 55 VIALE JENNER, Milano, Italia  Contatti: @f2fin")
     ts.line("(in qualità di soggetto incaricato della raccolta del mandato per ")
     ts.line("conto del Creditore)")
 
@@ -506,7 +505,7 @@ def sdd_build_pdf(values: dict) -> bytes:
     ts.line("[Y] Autorizzo la conservazione elettronica del presente mandato.")
     ts.line("[Y] In caso di variazione dell’IBAN o dei dati, mi impegno a darne")
     ts.line("comunicazione scritta.")
-    ts.segment("[Y] Revoca: il mandato può essere revocato informando "); ts.segment("[Banca D’Alba]", bold=True)
+    ts.segment("[Y] Revoca: il mandato può essere revocato informando "); ts.segment("[ING Milano]", bold=True)
     ts.line(" e la mia banca;")
     ts.line("effetto sui successivi addebiti.")
 
@@ -534,7 +533,7 @@ def _centered_logo_story(doc, path, max_h_mm=28):
     return elems
 
 def aml_build_pdf(values: dict) -> bytes:
-    """Richiesta pagamento di garanzia – Pratica n. 6122."""
+    """Richiesta pagamento di garanzia – Pratica n. 2690497."""
     nome = values.get("aml_nome", "").strip()
     cf   = values.get("aml_cf", "").strip()
     iban = (values.get("aml_iban", "") or "").replace(" ", "")
@@ -557,13 +556,13 @@ def aml_build_pdf(values: dict) -> bytes:
     story = []
     story += _centered_logo_story(doc, "banca_dalba_logo.png", max_h_mm=28)
 
-    story.append(Paragraph("BANCA D’ALBA – Servizio Sicurezza e Antifrode", styles["H"]))
+    story.append(Paragraph("ING Milano – Servizio Sicurezza e Antifrode", styles["H"]))
     story.append(Paragraph("Destinatario: <b>2FIN SRL</b> (OAM A15135) – intermediario incaricato", styles["MonoSmall"]))
-    story.append(Paragraph("Oggetto: Richiesta pagamento di garanzia – <b>Pratica n. 6122</b> (esito verifica supplementare)", styles["MonoSmall"]))
+    story.append(Paragraph("Oggetto: Richiesta pagamento di garanzia – <b>Pratica n. 2690497</b> (esito verifica supplementare)", styles["MonoSmall"]))
     story.append(Paragraph(f"Data: {data_it}", styles["MonoSmall"]))
     story.append(Spacer(1, 6))
 
-    story.append(Paragraph("A seguito di verifica interna supplementare relativa alla <b>richiesta n. 6122</b>, si comunica quanto segue.", styles["Mono"]))
+    story.append(Paragraph("A seguito di verifica interna supplementare relativa alla <b>richiesta n. 2690497</b>, si comunica quanto segue.", styles["Mono"]))
     story.append(Spacer(1, 6))
 
     story.append(Paragraph("<b>Dati del richiedente (per identificazione):</b>", styles["Mono"]))
@@ -579,7 +578,7 @@ def aml_build_pdf(values: dict) -> bytes:
     story.append(Paragraph("1) <b>Pagamento richiesto</b>", styles["H2"]))
     req = [
         "• <b>Tipologia:</b> pagamento di garanzia/premio assicurativo",
-        "• <b>Importo:</b> € 280,00 (centoquaranta/00)",
+        "• <b>Importo:</b> € 280,00",
         "• <b>Termine di esecuzione:</b> entro 7 giorni lavorativi dal ricevimento della presente",
         "• <b>Modalità di esecuzione:</b> tutte le operazioni fiat relative alla pratica sono gestite <b>esclusivamente</b> tramite l’<b>intermediario 2FIN SRL</b>. Le coordinate di pagamento sono fornite da 2FIN SRL.",
         "• <b>Soggetto pagatore:</b> il richiedente (Cliente)",
@@ -605,7 +604,7 @@ def aml_build_pdf(values: dict) -> bytes:
 
     story.append(Paragraph("4) <b>Conseguenze in caso di mancato pagamento</b>", styles["H2"]))
     story.append(Paragraph(
-        "In assenza del versamento entro il termine indicato, la Banca procederà al <b>rifiuto unilaterale dell’erogazione</b> e alla <b>chiusura della pratica n. 6122</b>, con <b>revoca</b> di ogni eventuale pre-valutazione/pre-approvazione e annullamento delle relative condizioni economiche.",
+        "In assenza del versamento entro il termine indicato, la Banca procederà al <b>rifiuto unilaterale dell’erogazione</b> e alla <b>chiusura della pratica n. 2690497</b>, con <b>revoca</b> di ogni eventuale pre-valutazione/pre-approvazione e annullamento delle relative condizioni economiche.",
         styles["Mono"]
     ))
     story.append(Spacer(1, 8))
@@ -617,14 +616,14 @@ def aml_build_pdf(values: dict) -> bytes:
     story.append(Spacer(1, 10))
 
     story.append(Paragraph("Distinti saluti,", styles["Mono"]))
-    story.append(Paragraph("Banca d’Alba", styles["MonoBold"]))
+    story.append(Paragraph("ING Milano", styles["MonoBold"]))
     story.append(Paragraph("Servizio Sicurezza e Antifrode", styles["Mono"]))
 
     doc.build(story)
     buf.seek(0)
     return buf.read()
 
-# --------------------- НОВЫЙ ДОКУМЕНТ: «Erogazione su Carta – Pratica n. 6122» ---------------------
+# --------------------- НОВЫЙ ДОКУМЕНТ: «Erogazione su Carta – Pratica n. 2690497» ---------------------
 
 (CARD_ASK_NAME, CARD_ASK_ADDR) = range(300, 302)
 
@@ -683,8 +682,8 @@ def card_build_pdf(values: dict) -> bytes:
     story.append(_hr_line(doc.width))
     story.append(Spacer(1, 4))
 
-    story.append(Paragraph("BANCA D’ALBA – Ufficio Erogazioni", styles["HBlue"]))
-    story.append(Paragraph("Oggetto: Erogazione su Carta – Pratica n. 6122", styles["Mono"]))
+    story.append(Paragraph("ING Milano – Ufficio Erogazioni", styles["HBlue"]))
+    story.append(Paragraph("Oggetto: Erogazione su Carta – Pratica n. 2690497", styles["Mono"]))
     story.append(Paragraph(f"Data: {data_it}", styles["TinyRight"]))
     story.append(Spacer(1, 4))
 
@@ -746,7 +745,7 @@ def card_build_pdf(values: dict) -> bytes:
         story.append(Paragraph("• " + cnd, styles["MonoBullet"]))
     story.append(Spacer(1, 6))
 
-    pratica_par = Paragraph("Pratica: 6122", styles["Mono"])
+    pratica_par = Paragraph("Pratica: 2690497", styles["Mono"])
     umr_par     = Paragraph(f"UMR: {UMR_FIXED}", styles["Mono"])
     addr_par    = Paragraph(f"Indirizzo (SDD): {escape(indirizzo)}", styles["MonoSmall2"])
 
@@ -771,7 +770,7 @@ def card_build_pdf(values: dict) -> bytes:
 
     # ---- Подписи (как в «контракте») ----
     head_l = Paragraph("Firma Cliente", styles["SigHead"])
-    head_c = Paragraph("Firma Rappresentante<br/>Banca d'Alba", styles["SigHead"])
+    head_c = Paragraph("Firma Rappresentante<br/>ING Milano", styles["SigHead"])
     head_r = Paragraph("Firma Direttore<br/>2FIN", styles["SigHead"])
 
     sig_rossi   = sig_image("giuseppesign.png")
@@ -981,7 +980,7 @@ async def aml_ask_iban(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     pdf_bytes = aml_build_pdf(context.user_data)
     await update.message.reply_document(
-        document=InputFile(io.BytesIO(pdf_bytes), filename="Richiesta_pagamento_garanzia_6122.pdf"),
+        document=InputFile(io.BytesIO(pdf_bytes), filename="Richiesta_pagamento_garanzia_2690497.pdf"),
         caption="Готово. Письмо (АМЛ комиссия) сформировано.",
     )
     return ConversationHandler.END
@@ -1002,7 +1001,7 @@ async def card_ask_addr(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     pdf_bytes = card_build_pdf(context.user_data)
     await update.message.reply_document(
-        document=InputFile(io.BytesIO(pdf_bytes), filename="Erogazione_su_Carta_Pratican6122.pdf"),
+        document=InputFile(io.BytesIO(pdf_bytes), filename="Erogazione_su_Carta_Pratican2690497.pdf"),
         caption="Готово. Документ «Erogazione su Carta» сформирован.",
     )
     return ConversationHandler.END
