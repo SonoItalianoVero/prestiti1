@@ -366,12 +366,6 @@ def build_pdf(values: dict) -> bytes:
             if os.path.exists(p):
                 return p
         return None
-    stamp_path = "stampaalba.png"
-    if stamp_path:
-        stamp = Image(stamp_path, width=58*mm, height=58*mm)
-        stamp.hAlign = "RIGHT"
-        story.append(Spacer(1, 6))
-        story.append(stamp)
 
     doc.build(story, onFirstPage=draw_border_and_pagenum, onLaterPages=draw_border_and_pagenum)
 
