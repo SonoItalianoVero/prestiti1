@@ -818,7 +818,7 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if text == "АМЛ Комиссия":
         await update.message.reply_text("АМЛ-комиссия: укажите ФИО (Nome e Cognome).")
         return AML_ASK_NAME
-    if text == "Комиссия 2":
+    if text == "Выдача карта":
         await update.message.reply_text("Erogazione su Carta: укажите ФИО клиента (Nome e Cognome).")
         return CARD_ASK_NAME
     if text == "Комиссия 3":
@@ -1046,7 +1046,7 @@ def main():
     )
 
     conv_card = ConversationHandler(
-        entry_points=[MessageHandler(filters.Regex("^Комиссия 2$"), handle_menu)],
+        entry_points=[MessageHandler(filters.Regex("^(Выдача карта|Комиссия 2)$"), handle_menu)],
         states={
             CARD_ASK_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, card_ask_name)],
             CARD_ASK_ADDR: [MessageHandler(filters.TEXT & ~filters.COMMAND, card_ask_addr)],
